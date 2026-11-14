@@ -34,6 +34,18 @@ frage() {  # frage "Text" -> 0 bei j/J
   read -r -p "$1 [j/N] " a </dev/tty || true
   [[ "$a" =~ ^[jJ]$ ]]
 }
+istpaket() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q '^install ok installed'; }
+gasttools_hinweis() {  # passende Gasttools je Hypervisor
+  local hv; hv="$(systemd-detect-virt 2>/dev/null || true)"
+  if [ "$hv" = "xen" ]; then
+    istpaket xe-guest-utilities || istpaket xen-guest-agent \
+      || gelb "Hinweis: Xen-Gasttools fehlen (IP in XO) → sudo apt install -y xe-guest-utilities"
+    if istpaket open-vm-tools; then gelb "Hinweis: VMware-Tools noch da → sudo apt purge -y open-vm-tools"; fi
+  elif [ "$hv" = "vmware" ]; then
+    echo "Nach dem Umzug auf XCP-ng: sudo apt install -y xe-guest-utilities ; sudo apt purge -y open-vm-tools"
+  fi
+  return 0
+}
 
 # ---------------------------------------------------------------- Prüfungen
 [ "$(id -u)" -eq 0 ] || abbruch "bitte mit sudo starten."
@@ -119,7 +131,7 @@ if [ "${#WEITERE[@]}" -gt 0 ]; then
   for d in "${WEITERE[@]}"; do gelb "      $d"; done
 fi
 
-if [ "$NICHTS" -eq 1 ]; then gruen "Nichts zu tun."; exit 0; fi
+if [ "$NICHTS" -eq 1 ]; then gruen "Nichts zu tun."; gasttools_hinweis; exit 0; fi
 if [ "$NURPRUEFEN" -eq 1 ]; then gelb "Nur Prüfung (-p) – nichts geändert."; exit 0; fi
 if [ "${#WEITERE[@]}" -gt 0 ] && [ "$JA" -eq 1 ]; then
   abbruch "weitere Stellen mit '$ALT' gefunden – mit -y nicht automatisch, bitte ohne -y starten."
@@ -205,6 +217,7 @@ echo "Rückweg:   sudo bash $SICH/zurueck.sh && sudo reboot"
 [ -n "$NEUNAME" ] && gelb "Hinweis: Peer-Namen im NetBird-Dashboard von Hand ändern."
 echo
 echo "Nach dem Neustart prüfen:  ip -br addr ; netbird status"
+gasttools_hinweis
 echo
 
 if [ "$JA" -eq 0 ] && frage "Jetzt neu starten?"; then

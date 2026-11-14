@@ -18,6 +18,11 @@ Das Skript stellt die VM **vor dem Umzug** auf den festen Namen `eth0` um:
 - ändert auf Wunsch den Hostnamen (inkl. `/etc/hosts`)
 - legt eine Sicherung samt Rückweg-Skript unter `/root/eth0-sicherung-<datum>/` an
 
+Es funktioniert auch **nach** einem Umzug (z. B. `enX0` → `eth0`). Das lohnt
+sich: Die `xe-guest-utilities` aus den Ubuntu-Paketquellen melden die IP nur
+bei klassischen Namen wie `eth0` an XCP-ng/Xen Orchestra, bei `enX0` bleibt
+die Anzeige leer.
+
 Die Änderungen wirken erst nach dem Neustart. Bei Unklarheiten (mehrere Karten,
 netplan mit `match:`/`set-name:`, eigene `.link`-Dateien …) bricht es ab, ohne
 etwas zu ändern.
@@ -38,6 +43,19 @@ sudo bash eth0.sh -n neuer-name      # zusätzlich Hostnamen ändern
 | `-y` | ohne Rückfragen, startet nicht selbst neu |
 
 Nach dem Neustart: `ip -br addr` — die Karte heißt `eth0` und hat die bisherige IP.
+
+**Hinter einer SSL-Inspektion** (Proxy/DNS-Filter, der HTTPS aufbricht) scheitert
+`curl` mit Fehler 60, solange dessen Root-Zertifikat auf dem Server fehlt. Dann
+die Ausnahme im Filter eintragen oder das Root-Zertifikat einspielen.
+
+### Nach dem Umzug auf XCP-ng
+
+```bash
+sudo apt install -y xe-guest-utilities   # Gasttools: IP, Speicher, sauberes Herunterfahren
+sudo apt purge -y open-vm-tools          # VMware-Tools entfernen
+```
+
+Das Skript weist am Ende selbst darauf hin, wenn etwas davon fehlt.
 
 ### Zurück
 
